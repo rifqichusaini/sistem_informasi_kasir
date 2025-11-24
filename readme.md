@@ -4,5 +4,5 @@ run project
 depedency
 - pip install supabase
 - pip install python-dotenv
-- pip install qtpy5
-- pip install qtpy5-tools
+- pip install pyqt5
+- pip install pyqt5-tools
