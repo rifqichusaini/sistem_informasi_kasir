@@ -34,6 +34,9 @@ class KasirWindow(QMainWindow):
 
         # daftar_barang akan menyimpan dict seperti: {barcode, nama, harga, stok, jumlah}
         self.daftar_barang = []
+        
+        # Flag untuk track apakah sudah dikonfirmasi logout
+        self._confirmed_logout = False
 
         # Apply stylesheet
         self.setStyleSheet(self.kasir_style.get_stylesheet())
@@ -138,6 +141,8 @@ class KasirWindow(QMainWindow):
             int(barcode)
         except ValueError:
             self.custom_dialog.show_message("Perhatian", "Barcode harus berupa angka.", "warning")
+            self.barcode_input.clear()
+            self.barcode_input.setFocus()
             return
 
         # Check if already in cart - convert both to string for comparison
@@ -153,13 +158,12 @@ class KasirWindow(QMainWindow):
             if not barang:
                 self.custom_dialog.show_message("Tidak Ditemukan", "Barang tidak terdaftar.", "warning")
                 self.barcode_input.clear()
+                self.barcode_input.setFocus()
                 return
             self.daftar_barang.append(barang)
 
         self.barcode_input.clear()
-        self.refresh_table()
-
-        self.barcode_input.clear()
+        self.barcode_input.setFocus()
         self.refresh_table()
 
     def refresh_table(self):
@@ -193,19 +197,46 @@ class KasirWindow(QMainWindow):
         self.update_total_label()
 
     def logout(self):
-        if len(self.daftar_barang) > 0:
-            konf = self.custom_dialog.show_message("Konfirmasi", "Ada transaksi yang belum terselesaikan\nApakah anda yakin ingin keluar?", "question")
-            if not konf:
-                return
-        else:
-            konf = self.custom_dialog.show_message("Konfirmasi", "Apakah anda yakin ingin keluar?", "question")
-            if not konf:
-                return
+        if not self.confirm_logout():
+            return
         
+        self._confirmed_logout = True
         self.custom_dialog.show_message("Sukses", "Berhasil keluar!", "info")
         self.close()
         self.logout_signal.emit()
         return
+
+    def confirm_logout(self):
+        """Check transaksi belum selesai dan minta konfirmasi"""
+        if len(self.daftar_barang) > 0:
+            konf = self.custom_dialog.show_message(
+                "Konfirmasi", 
+                "Ada transaksi yang belum terselesaikan\nApakah anda yakin ingin keluar?", 
+                "question"
+            )
+            return konf
+        else:
+            konf = self.custom_dialog.show_message(
+                "Konfirmasi", 
+                "Apakah anda yakin ingin keluar?", 
+                "question"
+            )
+            return konf
+
+    def closeEvent(self, event):
+        """Handle ketika user klik X button"""
+        # Jika sudah dikonfirmasi via logout button, langsung tutup
+        if self._confirmed_logout:
+            event.accept()
+            return
+        
+        # Jika user klik X button, minta konfirmasi
+        if not self.confirm_logout():
+            event.ignore()
+            return
+        
+        # Jika konfirmasi dari X button (bukan dari logout button), langsung tutup tanpa emit signal
+        event.accept()
 
     def on_item_changed(self, item):
         # Hanya proses jika kolom jumlah (kolom index 4)
@@ -292,9 +323,6 @@ class KasirWindow(QMainWindow):
         ok = self.custom_dialog.exec_() == QtWidgets.QDialog.Accepted
         uang = self.custom_dialog.get_value() if ok else 0
         if not ok:
-            return
-        if uang < total:
-            self.custom_dialog.show_message("Pembayaran Gagal", "Uang tidak cukup!", "warning")
             return
 
         # Update stok via API

@@ -18,10 +18,16 @@ def main():
 
     def show_login():
         nonlocal current_window
+        
+        # Close kasir window jika masih terbuka
+        if current_window[0] is not None:
+            current_window[0].close()
+            current_window[0] = None
 
         login_dialog = LoginDialog()
         if login_dialog.exec_() == QDialog.Accepted:
             name = login_dialog.logged_in_name
+        # debug untuk melewati login
         # if True:
         #     name = "Kasir"
             show_kasir(name=name)
@@ -31,10 +37,10 @@ def main():
     def show_kasir(name):
         nonlocal current_window
 
-        current_window = KasirWindow(cashier_name=name)
-        current_window.logout_signal.connect(show_login)
-        current_window.show()
-        current_window.resize_columns()
+        current_window[0] = KasirWindow(cashier_name=name)
+        current_window[0].logout_signal.connect(show_login)
+        current_window[0].show()
+        current_window[0].resize_columns()
 
     show_login()
 

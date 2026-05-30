@@ -9,6 +9,7 @@ class CustomDialog(QtWidgets.QDialog):
         self.setWindowTitle("Pembayaran")
         self.setModal(True)
         self.setFixedSize(400, 250)
+        self.total = total
         
         layout = QtWidgets.QVBoxLayout()
         layout.setSpacing(20)
@@ -46,11 +47,13 @@ class CustomDialog(QtWidgets.QDialog):
                 border-radius: 6px;
                 font-size: 12pt;
                 background-color: white;
+                padding-left: 10px;
             }
             QLineEdit:focus {
                 border: 2px solid #4CAF50;
             }
         """)
+        self.input_field.textChanged.connect(self.format_currency_input)
         layout.addWidget(self.input_field)
         
         # Buttons
@@ -93,7 +96,7 @@ class CustomDialog(QtWidgets.QDialog):
                 background-color: #45a049;
             }
         """)
-        ok_btn.clicked.connect(self.accept)
+        ok_btn.clicked.connect(self.validate_and_accept)
         ok_btn.setDefault(True)
         
         button_layout.addWidget(cancel_btn)
@@ -109,11 +112,50 @@ class CustomDialog(QtWidgets.QDialog):
             }
         """)
     
+    def format_currency_input(self):
+        """Format input dengan koma setiap 3 digit"""
+        # Disconnect signal agar tidak recurse
+        self.input_field.textChanged.disconnect(self.format_currency_input)
+        
+        # Ambil text tanpa koma
+        text = self.input_field.text().replace(",", "")
+        
+        # Format dengan koma
+        if text:
+            try:
+                formatted = f"{int(text):,}"
+                # Set cursor position sebelum update text
+                cursor_pos = len(self.input_field.text())
+                self.input_field.setText(formatted)
+                # Posisi cursor di akhir
+                self.input_field.setCursorPosition(len(formatted))
+            except ValueError:
+                pass
+        
+        # Re-connect signal
+        self.input_field.textChanged.connect(self.format_currency_input)
+    
     def get_value(self):
         try:
-            return int(self.input_field.text())
+            # Remove koma sebelum convert ke int
+            return int(self.input_field.text().replace(",", ""))
         except ValueError:
             return 0
+    
+    def validate_and_accept(self):
+        try:
+            # Remove koma sebelum convert
+            uang = int(self.input_field.text().replace(",", "").strip())
+            if uang < self.total:
+                self.show_message("Pembayaran Gagal", "Uang tidak cukup!", "warning")
+                self.input_field.clear()
+                self.input_field.setFocus()
+                return
+            self.accept()
+        except ValueError:
+            self.show_message("Input Invalid", "Masukkan jumlah uang yang valid!", "warning")
+            self.input_field.clear()
+            self.input_field.setFocus()
         
     def show_message(self, title, text, msg_type):
         msg = QMessageBox(self)
