@@ -1,10 +1,10 @@
-from api.login_api import LoginAPI
+from model.login_model import LoginModel
 from app.style import StyleText
 import os
 
 class LoginSystem:
 	def __init__(self):
-		self.api_login = LoginAPI()
+		self.api_login = LoginModel()
 		self.style = StyleText()
 
 	def login(self):

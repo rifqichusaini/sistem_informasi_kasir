@@ -1,14 +1,14 @@
 import os
 from datetime import datetime
 from style import StyleText
-from api.barang_api import BarangAPI
-from api.transaksi_api import TransaksiAPI
+from model.barang_model import BarangModel
+from model.transaksi_model import TransaksiModel
 
 class Kasir:
   def __init__(self, name):
     self.style = StyleText()
-    self.api_barang = BarangAPI()
-    self.api_transaksi = TransaksiAPI() 
+    self.api_barang = BarangModel()
+    self.api_transaksi = TransaksiModel() 
     self.name = name
     self.daftar_barang = []
 

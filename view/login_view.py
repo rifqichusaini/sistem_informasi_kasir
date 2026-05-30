@@ -5,13 +5,14 @@ from PyQt5.QtWidgets import (
 
 from model.login_model import LoginModel
 
-class LoginDialog(QDialog):
+
+class LoginView(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Login - Sistem Kasir")
         self.setFixedSize(400, 350)
 
-        self.model_login = LoginModel()
+        self.model = LoginModel()
 
         # Apply consistent stylesheet
         self.setStyleSheet(self.get_stylesheet())
@@ -154,7 +155,7 @@ class LoginDialog(QDialog):
             QMessageBox.warning(self, "Perhatian", "Isi username dan password terlebih dahulu.")
             return
 
-        name = self.model_login.validate_user(user=username, passw=password)
+        name = self.model.validate_user(user=username, passw=password)
         if name:
             QMessageBox.information(self, "Sukses", f"Login berhasil sebagai {name}!")
             self.logged_in_name = name
