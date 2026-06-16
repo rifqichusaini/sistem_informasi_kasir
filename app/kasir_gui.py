@@ -7,8 +7,8 @@ from PyQt5.QtWidgets import (
     QTableWidgetItem, QInputDialog
 )
 
-from api.barang_api import BarangAPI
-from api.transaksi_api import TransaksiAPI
+from model.barang_model import BarangModel
+from model.transaksi_model import TransaksiModel
 from app.custom_dialog import CustomDialog
 from style.kasir_style import KasirStyle
 
@@ -29,8 +29,8 @@ class KasirWindow(QMainWindow):
         self.kasir_style = KasirStyle()
 
         self.cashier_name = cashier_name
-        self.api_barang = BarangAPI()
-        self.api_transaksi = TransaksiAPI()
+        self.barang_model = BarangModel()
+        self.transaksi_model = TransaksiModel()
 
         # daftar_barang akan menyimpan dict seperti: {barcode, nama, harga, stok, jumlah}
         self.daftar_barang = []
@@ -54,7 +54,7 @@ class KasirWindow(QMainWindow):
         controls_layout.setSpacing(10)
         
         self.barcode_input = QtWidgets.QLineEdit()
-        self.barcode_input.setPlaceholderText("Masukkan / scan barcode lalu tekan Tambah")
+        self.barcode_input.setPlaceholderText("Masukkan / scan barcode")
         self.barcode_input.setObjectName("barcodeInput")
         self.barcode_input.returnPressed.connect(self.tambah_barang_from_input)
         
@@ -154,7 +154,7 @@ class KasirWindow(QMainWindow):
                 return
             found['jumlah'] += 1
         else:
-            barang = self.api_barang.get_barang(barcode)
+            barang = self.barang_model.get_barang(barcode)
             if not barang:
                 self.custom_dialog.show_message("Tidak Ditemukan", "Barang tidak terdaftar.", "warning")
                 self.barcode_input.clear()
@@ -325,17 +325,17 @@ class KasirWindow(QMainWindow):
         if not ok:
             return
 
-        # Update stok via API
+        # Update stok via model
         try:
             # Convert items to expected format (they already match)
-            self.api_barang.update_barang(daftar_barang=self.daftar_barang)
+            self.barang_model.update_barang(daftar_barang=self.daftar_barang)
         except Exception as e:
             self.custom_dialog.show_message("Error", f"Gagal update stok: {e}", "critical")
             return
 
         # Simpan transaksi
         try:
-            self.api_transaksi.simpan_transaksi(
+            self.transaksi_model.simpan_transaksi(
                 daftar_barang=self.daftar_barang,
                 total_harga=total,
                 uang_dibayar=uang

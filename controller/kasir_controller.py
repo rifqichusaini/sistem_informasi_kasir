@@ -29,7 +29,7 @@ class KasirController:
         self.view.pay_btn_top.clicked.connect(self.bayar)
         self.view.pay_btn_bottom.clicked.connect(self.bayar)
         self.view.table.itemChanged.connect(self.on_item_changed)
-        self.view.logout_signal.connect(self.handle_close_event)
+        self.view.close_requested.connect(self.handle_close_event)
         
         # Initial refresh
         self.refresh_view()
@@ -136,10 +136,12 @@ class KasirController:
         self.view.close()
         self.view.logout_signal.emit()
 
-    def handle_close_event(self):
+    def handle_close_event(self, event):
         """Handle close dari X button"""
         if not self.confirm_logout():
+            event.ignore()
             return
+        event.accept()
 
     def confirm_logout(self):
         """Check transaksi belum selesai dan minta konfirmasi"""
@@ -205,32 +207,46 @@ class KasirController:
         self.refresh_view()
 
     def cetak_struk(self, total_harga, uang_dibayar):
+        receipt_width = 42
         base_dir = os.path.dirname(os.path.abspath(__file__))
         struk_dir = os.path.join(base_dir, "../data")
         os.makedirs(struk_dir, exist_ok=True)
 
-        waktu = datetime.now().strftime("%Y%m%d-%H%M%S")
-        nama_file = f"struk-{waktu}.txt"
+        now = datetime.now()
+        nomor_struk = now.strftime("%Y%m%d-%H%M%S")
+        nama_file = f"struk-{nomor_struk}.txt"
         file_path = os.path.join(struk_dir, nama_file)
 
         kembalian = uang_dibayar - total_harga
 
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write("=" * 40 + "\n")
-            f.write("STRUK PEMBAYARAN KASIR".center(40, " ") + "\n")
-            f.write("=" * 40 + "\n")
-            f.write(f"Tanggal: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')} | {self.view.cashier_name}\n")
-            f.write("-" * 40 + "\n")
+            f.write("=" * receipt_width + "\n")
+            f.write("KIKI MINIMARKET".center(receipt_width) + "\n")
+            f.write("STRUK PEMBAYARAN".center(receipt_width) + "\n")
+            f.write("=" * receipt_width + "\n")
+            f.write(f"Tanggal  : {now.strftime('%d/%m/%Y %H:%M:%S')}\n")
+            f.write(f"Kasir    : {self.view.cashier_name}\n")
+            f.write("-" * receipt_width + "\n")
 
             for item in self.daftar_barang:
                 subtotal = item["harga"] * item["jumlah"]
-                # truncate name to width 20 for neatness
-                f.write(f"{item['nama'][:20]:20} x{item['jumlah']:2}  Rp{int(subtotal):>10,}\n")
+                nama_barang = str(item["nama"])[:receipt_width]
+                qty_price = f"  {item['jumlah']} x Rp {int(item['harga']):,}"
+                subtotal_text = f"Rp {int(subtotal):,}"
+                left_width = receipt_width - len(subtotal_text)
 
-            f.write("-" * 40 + "\n")
-            f.write(f"Total:{int(total_harga):>33,} Rp\n")
-            f.write(f"Uang Dibayar:{int(uang_dibayar):>28,} Rp\n")
-            f.write(f"Kembalian:{int(kembalian):>31,} Rp\n")
-            f.write("=" * 40 + "\n")
-            f.write("Terima kasih telah berbelanja!".center(40, " ") + "\n")
-            f.write("=" * 40 + "\n")
+                f.write(f"{nama_barang}\n")
+                f.write(f"{qty_price:<{left_width}}{subtotal_text}\n")
+
+            f.write("-" * receipt_width + "\n")
+            f.write(self._format_receipt_amount("Total", total_harga, receipt_width))
+            f.write(self._format_receipt_amount("Bayar", uang_dibayar, receipt_width))
+            f.write(self._format_receipt_amount("Kembali", kembalian, receipt_width))
+            f.write("=" * receipt_width + "\n")
+            f.write("Terima kasih telah berbelanja!".center(receipt_width) + "\n")
+            f.write("=" * receipt_width + "\n")
+
+    def _format_receipt_amount(self, label, amount, width):
+        amount_text = f"Rp {int(amount):,}"
+        label_text = f"{label}:"
+        return f"{label_text:<{width - len(amount_text)}}{amount_text}\n"

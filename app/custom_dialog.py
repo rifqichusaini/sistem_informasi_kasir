@@ -8,11 +8,11 @@ class CustomDialog(QtWidgets.QDialog):
         super().__init__(parent)
         self.setWindowTitle("Pembayaran")
         self.setModal(True)
-        self.setFixedSize(400, 250)
+        self.setFixedSize(460, 430)
         self.total = total
         
         layout = QtWidgets.QVBoxLayout()
-        layout.setSpacing(20)
+        layout.setSpacing(12)
         layout.setContentsMargins(30, 30, 30, 30)
         
         # Total label
@@ -29,15 +29,30 @@ class CustomDialog(QtWidgets.QDialog):
             }
         """)
         layout.addWidget(total_label)
+
+        self.change_label = QtWidgets.QLabel("Kembalian: Rp 0")
+        self.change_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.change_label.setFixedHeight(44)
+        self.change_label.setStyleSheet("""
+            QLabel {
+                font-size: 14px;
+                font-weight: bold;
+                color: #2c3e50;
+                background-color: #f8f9fa;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+            }
+        """)
+        layout.addWidget(self.change_label)
         
         # Input field
         label = QtWidgets.QLabel("Jumlah Uang Dibayar:")
-        label.setContentsMargins(0, 10, 0, 0)
+        label.setContentsMargins(0, 4, 0, 0)
         label.setStyleSheet("font-weight: bold; font-size: 11pt;")
         layout.addWidget(label)
         
         self.input_field = QtWidgets.QLineEdit()
-        validator = QtGui.QRegExpValidator(QtCore.QRegExp("[0-9]+"))
+        validator = QtGui.QRegExpValidator(QtCore.QRegExp("[0-9,]*"))
         self.input_field.setValidator(validator)
         self.input_field.setPlaceholderText("Masukkan jumlah uang...")
         self.input_field.setFixedHeight(40)
@@ -55,6 +70,91 @@ class CustomDialog(QtWidgets.QDialog):
         """)
         self.input_field.textChanged.connect(self.format_currency_input)
         layout.addWidget(self.input_field)
+
+        quick_money_layout = QtWidgets.QGridLayout()
+        quick_money_layout.setHorizontalSpacing(8)
+        quick_money_layout.setVerticalSpacing(8)
+        self.quick_money_buttons = []
+        quick_money_options = [
+            ("5rb", 5000),
+            ("10rb", 10000),
+            ("20rb", 20000),
+            ("50rb", 50000),
+            ("100rb", 100000),
+        ]
+
+        for label_text, amount in quick_money_options:
+            quick_btn = QtWidgets.QPushButton(label_text)
+            quick_btn.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+            quick_btn.setMinimumHeight(36)
+            quick_btn.setCursor(QtCore.Qt.PointingHandCursor)
+            quick_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #eef7ef;
+                    color: #2e7d32;
+                    border: 1px solid #4CAF50;
+                    border-radius: 6px;
+                    padding: 8px 14px;
+                    font-weight: bold;
+                    font-size: 10pt;
+                }
+                QPushButton:hover {
+                    background-color: #dff1e1;
+                }
+                QPushButton:pressed {
+                    background-color: #cfe8d2;
+                }
+            """)
+            quick_btn.adjustSize()
+            quick_btn.clicked.connect(lambda _, value=amount: self.add_quick_money(value))
+            button_index = len(self.quick_money_buttons)
+            quick_money_layout.addWidget(
+                quick_btn,
+                button_index // 3,
+                button_index % 3,
+                alignment=QtCore.Qt.AlignCenter
+            )
+            self.quick_money_buttons.append(quick_btn)
+
+        reset_btn = QtWidgets.QPushButton("Reset")
+        reset_btn.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        reset_btn.setMinimumHeight(36)
+        reset_btn.setCursor(QtCore.Qt.PointingHandCursor)
+        reset_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #fff4e5;
+                color: #b26a00;
+                border: 1px solid #f0ad4e;
+                border-radius: 6px;
+                padding: 8px 14px;
+                font-weight: bold;
+                font-size: 10pt;
+            }
+            QPushButton:hover {
+                background-color: #ffe8c2;
+            }
+            QPushButton:pressed {
+                background-color: #ffd99a;
+            }
+        """)
+        reset_btn.adjustSize()
+        reset_btn.clicked.connect(self.reset_payment_input)
+        quick_money_layout.addWidget(reset_btn, 1, 2, alignment=QtCore.Qt.AlignCenter)
+        self.reset_money_btn = reset_btn
+
+        layout.addLayout(quick_money_layout)
+
+        self.payment_status_label = QtWidgets.QLabel("")
+        self.payment_status_label.setFixedHeight(22)
+        self.payment_status_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.payment_status_label.setStyleSheet("""
+            QLabel {
+                color: #f44336;
+                font-size: 10pt;
+                font-weight: bold;
+            }
+        """)
+        layout.addWidget(self.payment_status_label)
         
         # Buttons
         button_layout = QtWidgets.QHBoxLayout()
@@ -79,8 +179,9 @@ class CustomDialog(QtWidgets.QDialog):
         """)
         cancel_btn.clicked.connect(self.reject)
         
-        ok_btn = QtWidgets.QPushButton("Bayar")
-        ok_btn.setStyleSheet("""
+        self.ok_btn = QtWidgets.QPushButton("Bayar")
+        self.ok_btn.setEnabled(False)
+        self.ok_btn.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50;
                 color: white;
@@ -95,12 +196,16 @@ class CustomDialog(QtWidgets.QDialog):
             QPushButton:hover {
                 background-color: #45a049;
             }
+            QPushButton:disabled {
+                background-color: #c8c8c8;
+                color: #777;
+            }
         """)
-        ok_btn.clicked.connect(self.validate_and_accept)
-        ok_btn.setDefault(True)
+        self.ok_btn.clicked.connect(self.validate_and_accept)
+        self.ok_btn.setDefault(True)
         
         button_layout.addWidget(cancel_btn)
-        button_layout.addWidget(ok_btn)
+        button_layout.addWidget(self.ok_btn)
         layout.addLayout(button_layout)
         
         self.setLayout(layout)
@@ -111,29 +216,54 @@ class CustomDialog(QtWidgets.QDialog):
                 background-color: white;
             }
         """)
+        self.update_payment_state()
     
     def format_currency_input(self):
         """Format input dengan koma setiap 3 digit"""
-        # Disconnect signal agar tidak recurse
         self.input_field.textChanged.disconnect(self.format_currency_input)
-        
-        # Ambil text tanpa koma
         text = self.input_field.text().replace(",", "")
-        
-        # Format dengan koma
+
         if text:
             try:
                 formatted = f"{int(text):,}"
-                # Set cursor position sebelum update text
-                cursor_pos = len(self.input_field.text())
                 self.input_field.setText(formatted)
-                # Posisi cursor di akhir
                 self.input_field.setCursorPosition(len(formatted))
             except ValueError:
-                pass
-        
-        # Re-connect signal
+                self.input_field.clear()
+        else:
+            self.input_field.clear()
+
         self.input_field.textChanged.connect(self.format_currency_input)
+        self.update_payment_state()
+
+    def add_quick_money(self, amount):
+        current_value = self.get_value()
+        self.input_field.setText(f"{current_value + amount:,}")
+        self.input_field.setCursorPosition(len(self.input_field.text()))
+        self.input_field.setFocus()
+
+    def reset_payment_input(self):
+        self.input_field.clear()
+        self.input_field.setFocus()
+
+    def update_payment_state(self):
+        uang = self.get_value()
+        kembalian = max(uang - self.total, 0)
+        self.change_label.setText(f"Kembalian: Rp {kembalian:,}")
+
+        if uang <= 0:
+            self.payment_status_label.clear()
+            self.ok_btn.setEnabled(False)
+            return
+
+        if uang < self.total:
+            kurang = self.total - uang
+            self.payment_status_label.setText(f"Uang tidak cukup. Kurang Rp {kurang:,}")
+            self.ok_btn.setEnabled(False)
+            return
+
+        self.payment_status_label.clear()
+        self.ok_btn.setEnabled(True)
     
     def get_value(self):
         try:
@@ -147,8 +277,7 @@ class CustomDialog(QtWidgets.QDialog):
             # Remove koma sebelum convert
             uang = int(self.input_field.text().replace(",", "").strip())
             if uang < self.total:
-                self.show_message("Pembayaran Gagal", "Uang tidak cukup!", "warning")
-                self.input_field.clear()
+                self.update_payment_state()
                 self.input_field.setFocus()
                 return
             self.accept()

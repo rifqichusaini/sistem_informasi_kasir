@@ -12,7 +12,9 @@ class LoginView(QDialog):
         self.setWindowTitle("Login - Sistem Kasir")
         self.setFixedSize(400, 350)
 
-        self.model = LoginModel()
+        self.model = None
+        self.logged_in_name = None
+        self._is_logging_in = False
 
         # Apply consistent stylesheet
         self.setStyleSheet(self.get_stylesheet())
@@ -61,8 +63,6 @@ class LoginView(QDialog):
         layout.addStretch()
         
         self.setLayout(layout)
-
-        self.logged_in_name = None
 
         # Focus pada username saat dialog dibuka
         self.username_input.setFocus()
@@ -148,14 +148,33 @@ class LoginView(QDialog):
         """
 
     def attempt_login(self):
+        if self._is_logging_in:
+            return
+
         username = self.username_input.text().strip()
-        password = self.password_input.text().strip()
+        password = self.password_input.text()
 
         if not username or not password:
             QMessageBox.warning(self, "Perhatian", "Isi username dan password terlebih dahulu.")
+            if not username:
+                self.username_input.setFocus()
+            else:
+                self.password_input.setFocus()
             return
 
-        name = self.model.validate_user(user=username, passw=password)
+        self._set_login_loading(True)
+        try:
+            if self.model is None:
+                self.model = LoginModel()
+            name = self.model.validate_user(user=username, passw=password)
+        except Exception as e:
+            QMessageBox.critical(self, "Login Bermasalah", f"Tidak bisa memproses login.\n{e}")
+            self.password_input.clear()
+            self.password_input.setFocus()
+            return
+        finally:
+            self._set_login_loading(False)
+
         if name:
             QMessageBox.information(self, "Sukses", f"Login berhasil sebagai {name}!")
             self.logged_in_name = name
@@ -164,3 +183,10 @@ class LoginView(QDialog):
             QMessageBox.warning(self, "Gagal", "Username atau password salah.")
             self.password_input.clear()
             self.password_input.setFocus()
+
+    def _set_login_loading(self, is_loading):
+        self._is_logging_in = is_loading
+        self.login_btn.setEnabled(not is_loading)
+        self.username_input.setEnabled(not is_loading)
+        self.password_input.setEnabled(not is_loading)
+        self.login_btn.setText("Memproses..." if is_loading else "Login")

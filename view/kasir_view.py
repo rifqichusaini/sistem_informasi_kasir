@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import (
     QMainWindow, QMessageBox,
@@ -14,6 +14,7 @@ from style.kasir_style import KasirStyle
 class KasirView(QMainWindow):
     """View layer - hanya untuk UI"""
     logout_signal = pyqtSignal()
+    close_requested = pyqtSignal(object)
 
     def __init__(self, cashier_name: str):
         super().__init__()
@@ -47,8 +48,11 @@ class KasirView(QMainWindow):
         controls_layout.setSpacing(10)
         
         self.barcode_input = QtWidgets.QLineEdit()
-        self.barcode_input.setPlaceholderText("Masukkan / scan barcode lalu tekan Tambah")
+        self.barcode_input.setPlaceholderText("Masukkan / scan barcode")
         self.barcode_input.setObjectName("barcodeInput")
+        self.barcode_input.setValidator(
+            QtGui.QRegExpValidator(QtCore.QRegExp("[0-9]*"), self.barcode_input)
+        )
         
         self.add_btn = QtWidgets.QPushButton("Tambah Barang")
         self.add_btn.setObjectName("addButton")
@@ -161,6 +165,4 @@ class KasirView(QMainWindow):
             event.accept()
             return
         
-        # Jika user klik X button, emit signal untuk controller handle
-        self.logout_signal.emit()
-        event.accept()
+        self.close_requested.emit(event)
